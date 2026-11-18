@@ -13,11 +13,33 @@ func TestSuggestedLink(t *testing.T) {
 		"https://archive.org/details/night_of_the_living_dead": "archive.org",
 		"  http://example.com/a.mkv  ":                         "example.com",
 		"HTTPS://Example.com/x":                                "example.com",
+		"http://example.com:8080/a":                            "example.com",
+		"http://[::1]:8080/a":                                  "::1",
+		"http://[::1]/a":                                       "::1",
 	} {
 		link, site, ok := suggestedLink(in)
-		if !ok || site != want || link != strings.TrimSpace(strings.Replace(in, "HTTPS", "https", 1)) {
+		if !ok || site != want || link != strings.ToLower(strings.TrimSpace(strings.Replace(in, "HTTPS", "https", 1))) {
 			t.Errorf("%q: %q %q %v", in, link, site, ok)
 		}
+	}
+	if link, _, ok := suggestedLink("http://example.com:8080/a"); !ok || link != "http://example.com:8080/a" {
+		t.Errorf("a port was lost: %q", link)
+	}
+	if link, site, ok := suggestedLink("https://\u0430rchive.org/x"); !ok || !strings.HasPrefix(site, "xn--") || !strings.Contains(link, "xn--") {
+		t.Errorf("a look-alike host should come out as punycode: %q %q %v", link, site, ok)
+	}
+	if link, site, ok := suggestedLink("https://exam\u202eple.com/x"); strings.Contains(link, "\u202e") || strings.Contains(site, "\u202e") {
+		t.Errorf("a bidi override came through: %q %q %v", link, site, ok)
+	}
+	if link, _, ok := suggestedLink("https://example.com/a.mkv#t=10"); !ok || strings.Contains(link, "#") {
+		t.Errorf("the fragment stayed: %q", link)
+	}
+	exact := "https://example.com/" + strings.Repeat("a", suggestURLMax-len("https://example.com/"))
+	if _, _, ok := suggestedLink(exact); !ok || len(exact) != suggestURLMax {
+		t.Errorf("a link of exactly %d bytes (%d) was refused", suggestURLMax, len(exact))
+	}
+	if _, _, ok := suggestedLink(exact + "a"); ok {
+		t.Error("a link of one byte over was taken")
 	}
 	for _, bad := range []string{
 		"", "   ", "archive.org/details/x", "ftp://example.com/a.mkv", "file:///etc/passwd",
@@ -78,7 +100,7 @@ func TestSuggestions(t *testing.T) {
 	}
 
 	var id int
-	a.wait(func() { a.locked, id = true, a.suggestions[0].ID }) // sealed: AddURL refuses; the view shows nothing, so read the state
+	a.wait(func() { a.locked, id = true, a.suggestions[0].ID }) // a stand-in to make AddURL refuse (locked); the view shows nothing then, so read the state
 	if why := a.AcceptSuggestion(id); why == "" {
 		t.Fatal("added while sealed")
 	}

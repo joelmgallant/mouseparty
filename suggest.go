@@ -5,12 +5,15 @@ package main
 // until the host adds one, and none is kept: they last as long as the app's memory of them.
 
 import (
+	"net"
 	"net/url"
 	"slices"
 	"strings"
 	"time"
 	"unicode"
 	"unicode/utf8"
+
+	"golang.org/x/net/idna"
 )
 
 const (
@@ -20,7 +23,8 @@ const (
 )
 
 // suggestedLink: the link as it'll be added, and its site for chat; ok only for a plain web link:
-// http or https, a host, no login written into it, no longer than suggestURLMax, no control characters
+// http or https, a host, no login written into it, no longer than suggestURLMax, no control characters.
+// The host is made ASCII (punycode), so a look-alike domain shows as xn--, and the fragment dropped
 func suggestedLink(s string) (link, site string, ok bool) {
 	s = strings.TrimSpace(s)
 	if s == "" || len(s) > suggestURLMax || !utf8.ValidString(s) || strings.IndexFunc(s, unicode.IsControl) >= 0 {
@@ -30,7 +34,23 @@ func suggestedLink(s string) (link, site string, ok bool) {
 	if err != nil || (u.Scheme != "http" && u.Scheme != "https") || u.Hostname() == "" || u.User != nil {
 		return "", "", false
 	}
-	return u.String(), strings.ToLower(u.Hostname()), true
+	host := u.Hostname()
+	if net.ParseIP(host) == nil { // an address is already ASCII, and not a name for idna
+		if host, err = idna.Lookup.ToASCII(host); err != nil || host == "" {
+			return "", "", false
+		}
+	}
+	host = strings.ToLower(host)
+	switch {
+	case u.Port() != "":
+		u.Host = net.JoinHostPort(host, u.Port())
+	case strings.Contains(host, ":"): // a bare IPv6 address: Hostname took its brackets off
+		u.Host = "[" + host + "]"
+	default:
+		u.Host = host
+	}
+	u.Fragment, u.RawFragment = "", "" // the list holds links without one, so dedupe sees the same link
+	return u.String(), host, true
 }
 
 // Suggestion: one waiting in the window
@@ -46,6 +66,7 @@ type SuggestionRow struct {
 	ID   int    `json:"id"`
 	Name string `json:"name"`
 	Link string `json:"link"` // its site and path, for reading
+	URL  string `json:"url"`  // the whole link, for the tooltip
 	Why  string `json:"why"`
 }
 
@@ -86,7 +107,7 @@ func (a *App) suggestionRows() []SuggestionRow {
 		if u, err := url.Parse(s.URL); err == nil {
 			link = u.Host + u.EscapedPath()
 		}
-		rows = append(rows, SuggestionRow{ID: s.ID, Name: s.Name, Link: link, Why: s.Why})
+		rows = append(rows, SuggestionRow{ID: s.ID, Name: s.Name, Link: link, URL: s.URL, Why: s.Why})
 	}
 	return rows
 }
