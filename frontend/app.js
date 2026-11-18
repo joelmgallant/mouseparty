@@ -57,9 +57,11 @@ function renderSuggestions(list) {
 		link.title = s.why ? `${s.link}: ${s.why}` : s.link;
 		const add = document.createElement("button");
 		add.textContent = "Add";
+		add.setAttribute("aria-label", `Add ${s.name}'s suggestion`);
 		add.addEventListener("click", () => App().AcceptSuggestion(s.id));
 		const dismiss = document.createElement("button");
 		dismiss.textContent = "Dismiss";
+		dismiss.setAttribute("aria-label", `Dismiss ${s.name}'s suggestion`);
 		dismiss.addEventListener("click", () => App().DismissSuggestion(s.id));
 		row.append(who, link, add, dismiss);
 		box.appendChild(row);
@@ -169,6 +171,7 @@ window.addEventListener("mouseup", () => {
 	dragFrom = null;
 });
 window.addEventListener("keydown", (e) => {
+	if (e.target.closest?.("#suggested")) return;
 	if (sheetOpen() || e.metaKey || e.ctrlKey || e.altKey) return;
 	const rows = view?.rows.length ?? 0;
 	const sel = view?.selected ?? -1;

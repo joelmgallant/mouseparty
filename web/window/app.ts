@@ -63,9 +63,11 @@ function renderSuggestions(list: SuggestionRow[]) {
         link.title = s.why ? `${s.link}: ${s.why}` : s.link;
         const add = document.createElement('button');
         add.textContent = 'Add';
+        add.setAttribute('aria-label', `Add ${s.name}'s suggestion`);
         add.addEventListener('click', () => App().AcceptSuggestion(s.id));
         const dismiss = document.createElement('button');
         dismiss.textContent = 'Dismiss';
+        dismiss.setAttribute('aria-label', `Dismiss ${s.name}'s suggestion`);
         dismiss.addEventListener('click', () => App().DismissSuggestion(s.id));
         row.append(who, link, add, dismiss);
         box.appendChild(row);
@@ -182,6 +184,7 @@ window.addEventListener('mouseup', () => {
 
 // keys: ↑/↓ select, Return plays, Backspace removes the selected one; ←/→ and Page Up/Down turn a PDF's pages
 window.addEventListener('keydown', (e) => {
+    if ((e.target as HTMLElement).closest?.('#suggested')) return; // the Suggested buttons' keys, not the list's
     if (sheetOpen() || e.metaKey || e.ctrlKey || e.altKey) return; // typing a passcode, or the settings; the menus' keys
     const rows = view?.rows.length ?? 0;
     const sel = view?.selected ?? -1;
