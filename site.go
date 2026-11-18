@@ -440,7 +440,7 @@ func (m *MacCalls) Event(e SiteEvent, _ *None) error {
 	case "suggest":
 		name, link, _ := strings.Cut(e.Text, "\n")
 		link, _, ok := suggestedLink(link)
-		if !ok || name == "" || utf8.RuneCountInString(name) > nameMax || strings.IndexFunc(name, unicode.IsControl) >= 0 {
+		if !ok || strings.TrimSpace(name) == "" || !utf8.ValidString(name) || utf8.RuneCountInString(name) > nameMax || strings.IndexFunc(name, unicode.IsControl) >= 0 {
 			return errors.New("not a suggestion")
 		}
 		if h.Suggested != nil {
