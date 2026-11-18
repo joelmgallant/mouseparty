@@ -454,3 +454,5 @@ button { font-family: var(--font); }
 }
 /* another document (host.ts showText): drawn by Tiny Little Office's editors, read-only, in the PDF's place */
 .doc-text-note { margin: auto; color: #ccc; font: 15px ui-monospace, Menlo, monospace; }
+#suggestBox input { flex: 1; min-width: 0; }
+#suggestInput.nudge { border-color: var(--name); } /* as .join-ask.nudge: no keyframes to shake with */

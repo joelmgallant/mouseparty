@@ -95,7 +95,13 @@
                 <div class="row" id="chatInputBox" style="display: none;">
                     <button id="nameBtn" class="chip" title="Change name" aria-label="Change name"><span id="currentUserDisplay"></span></button>
                     <textarea id="messageInput" rows="1" aria-label="Message" placeholder="Say something..." maxlength="500" autocomplete="off"></textarea>
+                    <button id="suggestBtn" class="chip" title="Suggest a video for the list" aria-label="Suggest a video">🔗</button>
                     <button class="btn plus" title="Open an app for everyone" aria-label="Open an app">+</button>
+                </div>
+                <div class="row" id="suggestBox" style="display: none;">
+                    <input type="url" id="suggestInput" aria-label="A link to a video" placeholder="Paste a video link (https://…)" maxlength="2048" autocomplete="off" enterkeyhint="send" />
+                    <button id="suggestSend" class="btn">Suggest</button>
+                    <button id="suggestCancel" class="chip" aria-label="Cancel">✕</button>
                 </div>
             </div>
         </aside>

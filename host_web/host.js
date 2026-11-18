@@ -471,6 +471,34 @@ byId("nameBtn").addEventListener("click", () => {
 	byId("usernameInput").value = myName || "";
 	byId("usernameInput").focus();
 });
+const suggestInput = byId("suggestInput");
+function suggesting(on) {
+	byId("suggestBox").style.display = on ? "" : "none";
+	byId("chatInputBox").style.display = on ? "none" : "";
+	suggestInput.classList.remove("nudge");
+	if (on) suggestInput.focus();
+	else suggestInput.value = "";
+}
+function suggest() {
+	const link = suggestInput.value.trim();
+	if (!/^https?:\/\/[^\s/]+/i.test(link)) {
+		suggestInput.classList.add("nudge");
+		suggestInput.focus();
+		return;
+	}
+	send({
+		type: "suggest",
+		url: link
+	});
+	suggesting(false);
+}
+byId("suggestBtn").addEventListener("click", () => suggesting(true));
+byId("suggestCancel").addEventListener("click", () => suggesting(false));
+byId("suggestSend").addEventListener("click", suggest);
+suggestInput.addEventListener("keydown", (e) => {
+	if (e.key === "Enter") suggest();
+	if (e.key === "Escape") suggesting(false);
+});
 let chatHidden = false;
 try {
 	chatHidden = store.getItem("mousepartyChatHidden") === "1";

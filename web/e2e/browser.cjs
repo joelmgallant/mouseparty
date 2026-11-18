@@ -364,6 +364,15 @@ async function viewers(browser) {
     await bob.fill('#messageInput', 'hello from Bob');
     await bob.press('#messageInput', 'Enter');
     await ann.waitForFunction(() => document.body.innerText.includes('hello from Bob'), null, { timeout: 5000 }).catch(() => fail('the chat line never reached Ann'));
+    // a link suggested for the host's list: said in everyone's chat
+    await ann.click('#suggestBtn');
+    await ann.fill('#suggestInput', 'not a link');
+    await ann.press('#suggestInput', 'Enter');
+    if (!(await ann.isVisible('#suggestBox'))) fail('the suggest box took something that is not a link');
+    await ann.fill('#suggestInput', 'https://archive.org/details/night_of_the_living_dead');
+    await ann.press('#suggestInput', 'Enter');
+    await bob.waitForFunction(() => document.body.innerText.includes('Ann suggested archive.org'), null, { timeout: 5000 }).catch(() => fail("Ann's suggestion never reached the chat"));
+    if (!(await ann.isVisible('#messageInput'))) fail('the chat box never came back after suggesting');
 
     // every app: opened by Ann, drawn on both pages, closed by Bob
     const count = await (async () => {

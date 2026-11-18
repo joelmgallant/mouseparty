@@ -467,6 +467,34 @@ byId('nameBtn').addEventListener('click', () => {
     byId('usernameInput').focus();
 });
 
+// ---------- suggesting a video ----------
+// A link for the host's list: the host adds or dismisses it in the app; chat says so.
+const suggestInput = byId<HTMLInputElement>('suggestInput');
+function suggesting(on: boolean) {
+    byId('suggestBox').style.display = on ? '' : 'none';
+    byId('chatInputBox').style.display = on ? 'none' : '';
+    suggestInput.classList.remove('nudge');
+    if (on) suggestInput.focus();
+    else suggestInput.value = '';
+}
+function suggest() {
+    const link = suggestInput.value.trim();
+    if (!/^https?:\/\/[^\s/]+/i.test(link)) {
+        suggestInput.classList.add('nudge'); // as the name question does
+        suggestInput.focus();
+        return;
+    }
+    send({ type: 'suggest', url: link });
+    suggesting(false);
+}
+byId('suggestBtn').addEventListener('click', () => suggesting(true));
+byId('suggestCancel').addEventListener('click', () => suggesting(false));
+byId('suggestSend').addEventListener('click', suggest);
+suggestInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') suggest();
+    if (e.key === 'Escape') suggesting(false);
+});
+
 // ---------- hiding the chat ----------
 // Remembered per device. While hidden, the chat tab on the video's right edge
 // counts the messages that arrive (not your own, not joins and leaves).

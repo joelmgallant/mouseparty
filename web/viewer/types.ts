@@ -128,6 +128,7 @@ export type FromHost =
 export type ToHost =
     | { type: 'join'; name: string }
     | { type: 'say'; text: string }
+    | { type: 'suggest'; url: string }
     | { type: 'app_open'; name: string }
     | { type: 'app_close'; id: number }
     | { type: 'doc_at'; token: string | null; at?: string; back?: true }
