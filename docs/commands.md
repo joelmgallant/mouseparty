@@ -85,6 +85,7 @@ Not walked: `AcceptSuggestion`, Add on a viewer's suggested link (suggest_test.g
 |---|---|---|
 | `join` | `name` (str) | take a name (or another) |
 | `say` | `text` (str) | a line of chat |
+| `suggest` | `url` (str) | a link for the host's list |
 | `app_open` | `name` (app) | open an app for everyone |
 | `app_close` | `id` (appid) | close one for everyone |
 | `doc_at` | `token` (str), `at` (str), `back` (bool) | a page of the database up |

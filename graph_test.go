@@ -134,6 +134,7 @@ type socketCommand struct {
 var socketGraph = []socketCommand{
 	{"join", []apps.Field{{Name: "name", Type: "str", Max: nameMax}}, "take a name (or another)"},
 	{"say", []apps.Field{{Name: "text", Type: "str", Max: textMax}}, "a line of chat"},
+	{"suggest", []apps.Field{{Name: "url", Type: "str", Max: suggestURLMax}}, "a link for the host's list"},
 	{"app_open", []apps.Field{{Name: "name", Type: "app"}}, "open an app for everyone"},
 	{"app_close", []apps.Field{{Name: "id", Type: "appid"}}, "close one for everyone"},
 	{"doc_at", []apps.Field{{Name: "token", Type: "str", Max: 20}, {Name: "at", Type: "str", Max: 80}, {Name: "back", Type: "bool"}}, "a page of the database up"},
