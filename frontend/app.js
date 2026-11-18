@@ -33,6 +33,38 @@ function tile(el, icon, on, press, note, cls) {
 	el.className = `tile ${on ? "on" : ""} ${press ? "press" : ""} ${cls || ""}`;
 	el.innerHTML = ICONS[icon] + `<span class="note">${note || ""}</span>`;
 }
+function renderSuggestions(list) {
+	const box = $("suggested");
+	const key = JSON.stringify(list);
+	if (box.dataset.key === key) return;
+	box.dataset.key = key;
+	box.hidden = list.length === 0;
+	box.replaceChildren();
+	if (!list.length) return;
+	const head = document.createElement("div");
+	head.className = "suggested-head";
+	head.textContent = "Suggested";
+	box.appendChild(head);
+	for (const s of list) {
+		const row = document.createElement("div");
+		row.className = "suggestion" + (s.why ? " refused" : "");
+		const who = document.createElement("span");
+		who.className = "who";
+		who.textContent = s.name;
+		const link = document.createElement("span");
+		link.className = "link";
+		link.textContent = s.why || s.link;
+		link.title = s.why ? `${s.link}: ${s.why}` : s.link;
+		const add = document.createElement("button");
+		add.textContent = "Add";
+		add.addEventListener("click", () => App().AcceptSuggestion(s.id));
+		const dismiss = document.createElement("button");
+		dismiss.textContent = "Dismiss";
+		dismiss.addEventListener("click", () => App().DismissSuggestion(s.id));
+		row.append(who, link, add, dismiss);
+		box.appendChild(row);
+	}
+}
 function render(v) {
 	view = v;
 	lock(v);
@@ -81,6 +113,7 @@ function render(v) {
 		row.children[3].textContent = r.length;
 	});
 	$("hint").style.display = v.rows.length ? "none" : "";
+	renderSuggestions(v.suggestions ?? []);
 }
 function rowAt(x, y) {
 	const row = document.elementFromPoint(x, y)?.closest(".row");

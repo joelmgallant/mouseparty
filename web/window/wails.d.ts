@@ -21,6 +21,7 @@ export interface View {
     linkPress: boolean; // can be pressed
     linkNote: string; // under the icon: "Making link", "Copied", "Wi-Fi only"...
     rows: Row[];
+    suggestions: SuggestionRow[]; // links viewers suggested, under the list (suggest.go)
     selected: number; // -1: none
     slider: Slider;
     locked: boolean; // the party is sealed: the window asks for its passcode, and shows nothing else
@@ -34,6 +35,14 @@ export interface Row {
     now: boolean; // playing
     played: boolean; // above the one playing, or next to play
     off: boolean; // can't play: its file is gone (a drive unplugged) or unreadable
+}
+
+// suggest.go SuggestionRow: a link a viewer suggested, waiting for Add or Dismiss
+export interface SuggestionRow {
+    id: number;
+    name: string; // who
+    link: string; // its site and path
+    why: string; // why Add didn't, when it didn't
 }
 
 // what a row is: a movie, a song, a PDF, another document, a database, or a download link not yet down
@@ -51,6 +60,8 @@ export interface Slider {
 
 export interface App {
     GetView(): Promise<View>;
+    AcceptSuggestion(id: number): Promise<string>;
+    DismissSuggestion(id: number): Promise<void>;
     PlayClicked(): Promise<void>;
     LinkClicked(): Promise<void>;
     Select(i: number): Promise<void>;

@@ -306,3 +306,11 @@ body {
 .log { margin: 0; width: 100%; box-sizing: border-box; height: 300px; overflow: auto; padding: 8px; border-radius: 6px;
        background: rgba(127,127,127,.12); font: 11px/1.45 ui-monospace, Menlo, monospace; white-space: pre-wrap; word-break: break-word; user-select: text; }
 .sheet-box:has(.log) { width: min(100%, 640px); }
+
+.suggested { border-top: 1px solid var(--row-alt); padding: 4px 8px 6px; max-height: 30vh; overflow-y: auto; }
+.suggested-head { color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: 0.04em; padding: 2px 0 4px; }
+.suggestion { display: grid; grid-template-columns: auto 1fr auto auto; gap: 8px; align-items: center; padding: 3px 0; color: var(--muted); }
+.suggestion .who { font-weight: 600; }
+.suggestion .link { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.suggestion.refused .link { color: #c0392b; }
+.suggestion button { font: inherit; font-size: 12px; padding: 1px 8px; }

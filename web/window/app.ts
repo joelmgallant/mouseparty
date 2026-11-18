@@ -1,6 +1,6 @@
 // The window: it draws the View the Go side sends (app.go) and tells it what was
 // pressed. It keeps nothing of its own but a drag in progress and a held slider.
-import type { Icon, View } from './wails.d.ts';
+import type { Icon, SuggestionRow, View } from './wails.d.ts';
 import { ask, edit, lock, sheetOpen } from './party.ts';
 
 const App = () => window.go.main.App;
@@ -36,6 +36,40 @@ function tile(el: HTMLElement, icon: keyof typeof ICONS, on: boolean, press: boo
     el.dataset.key = key;
     el.className = `tile ${on ? 'on' : ''} ${press ? 'press' : ''} ${cls || ''}`;
     el.innerHTML = ICONS[icon] + `<span class="note">${note || ''}</span>`;
+}
+
+// links viewers suggested: under the list, each with Add and Dismiss; nothing there, nothing shown
+function renderSuggestions(list: SuggestionRow[]) {
+    const box = $('suggested');
+    const key = JSON.stringify(list);
+    if (box.dataset.key === key) return;
+    box.dataset.key = key;
+    box.hidden = list.length === 0;
+    box.replaceChildren();
+    if (!list.length) return;
+    const head = document.createElement('div');
+    head.className = 'suggested-head';
+    head.textContent = 'Suggested';
+    box.appendChild(head);
+    for (const s of list) {
+        const row = document.createElement('div');
+        row.className = 'suggestion' + (s.why ? ' refused' : '');
+        const who = document.createElement('span');
+        who.className = 'who';
+        who.textContent = s.name; // never innerHTML: a stranger typed it
+        const link = document.createElement('span');
+        link.className = 'link';
+        link.textContent = s.why || s.link;
+        link.title = s.why ? `${s.link}: ${s.why}` : s.link;
+        const add = document.createElement('button');
+        add.textContent = 'Add';
+        add.addEventListener('click', () => App().AcceptSuggestion(s.id));
+        const dismiss = document.createElement('button');
+        dismiss.textContent = 'Dismiss';
+        dismiss.addEventListener('click', () => App().DismissSuggestion(s.id));
+        row.append(who, link, add, dismiss);
+        box.appendChild(row);
+    }
 }
 
 function render(v: View) {
@@ -86,6 +120,7 @@ function render(v: View) {
         row.children[3].textContent = r.length;
     });
     $('hint').style.display = v.rows.length ? 'none' : '';
+    renderSuggestions(v.suggestions ?? []);
 }
 
 function rowAt(x: number, y: number) {
