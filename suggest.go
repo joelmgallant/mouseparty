@@ -73,10 +73,12 @@ func (a *App) suggested(name, link string, viewer int) {
 	a.notify(name+" suggested a video", link)
 }
 
+// suggestionAt: where the suggestion with this id is in a.suggestions; -1 when it's gone
 func (a *App) suggestionAt(id int) int {
 	return slices.IndexFunc(a.suggestions, func(s Suggestion) bool { return s.ID == id })
 }
 
+// suggestionRows: the suggestions as the window draws them
 func (a *App) suggestionRows() []SuggestionRow {
 	rows := []SuggestionRow{}
 	for _, s := range a.suggestions {

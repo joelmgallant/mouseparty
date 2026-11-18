@@ -37,6 +37,9 @@ func TestSuggestedLink(t *testing.T) {
 func TestSuggestions(t *testing.T) {
 	t.Setenv("HOME", t.TempDir())
 	a := NewApp(standby)
+	a.hostSetup = func(h *Host) { // never the default ports (CLAUDE.md)
+		h.HTTPPort, h.ICEPort, h.MapPorts, h.CleanLeftovers, h.Cloudflared = freePort(), freeICEPort(), false, false, ""
+	}
 	go a.run()
 	defer a.shutdown(nil)
 	suggest := func(name, link string) { a.wait(func() { a.suggested(name, link, 1) }) }
