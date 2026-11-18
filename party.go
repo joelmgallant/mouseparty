@@ -101,6 +101,7 @@ func (a *App) EraseAll() string {
 		if a.host != nil {
 			a.host.Stop() // apps keep what they hold as they close: into the file about to go
 			a.host = nil
+			a.suggestions = nil // a stranger's links go with the party they came to
 		}
 		a.party.close()
 		a.party = nil

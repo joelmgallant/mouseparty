@@ -28,17 +28,18 @@ const startGap = 3.0 // seconds ffmpeg takes to start a movie or card, for the g
 
 // What the window shows; it draws exactly this.
 type View struct {
-	Play      string `json:"play"`      // "play" or "stop"
-	PlayOn    bool   `json:"playOn"`    // in colour, and can be pressed
-	Link      string `json:"link"`      // "copy" or "spinner"
-	LinkOn    bool   `json:"linkOn"`    // in colour
-	LinkPress bool   `json:"linkPress"` // can be pressed
-	LinkNote  string `json:"linkNote"`  // under the icon: "Making link", "Copied", "Wi-Fi only"...
-	Rows      []Row  `json:"rows"`
-	Selected  int    `json:"selected"` // -1: none
-	Slider    Slider `json:"slider"`
-	Locked    bool   `json:"locked"` // the party is sealed: the window asks for its passcode, and shows nothing else
-	Sealed    bool   `json:"sealed"` // the party is kept encrypted
+	Play        string          `json:"play"`      // "play" or "stop"
+	PlayOn      bool            `json:"playOn"`    // in colour, and can be pressed
+	Link        string          `json:"link"`      // "copy" or "spinner"
+	LinkOn      bool            `json:"linkOn"`    // in colour
+	LinkPress   bool            `json:"linkPress"` // can be pressed
+	LinkNote    string          `json:"linkNote"`  // under the icon: "Making link", "Copied", "Wi-Fi only"...
+	Rows        []Row           `json:"rows"`
+	Suggestions []SuggestionRow `json:"suggestions"` // links viewers suggested, under the list (suggest.go)
+	Selected    int             `json:"selected"`    // -1: none
+	Slider      Slider          `json:"slider"`
+	Locked      bool            `json:"locked"` // the party is sealed: the window asks for its passcode, and shows nothing else
+	Sealed      bool            `json:"sealed"` // the party is kept encrypted
 }
 
 type Row struct {
@@ -113,11 +114,13 @@ type App struct {
 	standby      []byte       // the card MediaMTX loops between movies
 	hostSetup    func(*Host)  // tests: free ports, no router, no tunnel
 
-	cueMu      sync.Mutex
-	cueCache   map[cueKey][]Cue
-	tempLogins map[string]siteLogin // logins given for a link but not saved, by site: only until the app quits (logins.go)
-	update     updater              // a newer Mouse Party, looked for and fetched (updates.go)
-	bundlePath string               // the app this is, when tests say (updates.go thisBundle); "" for the real one
+	cueMu          sync.Mutex
+	cueCache       map[cueKey][]Cue
+	tempLogins     map[string]siteLogin // logins given for a link but not saved, by site: only until the app quits (logins.go)
+	suggestions    []Suggestion         // links viewers suggested, waiting for Add or Dismiss (suggest.go)
+	lastSuggestion int                  // the last one's id
+	update         updater              // a newer Mouse Party, looked for and fetched (updates.go)
+	bundlePath     string               // the app this is, when tests say (updates.go thisBundle); "" for the real one
 
 	undo, redo *undoStep // the last rows removed, to put back (Edit > Undo), and put back, to take out again
 
@@ -295,9 +298,9 @@ func (a *App) state() string {
 
 func (a *App) view() View {
 	state := a.state()
-	v := View{Play: "play", PlayOn: state == "ready", Link: "copy", Selected: a.selected, Rows: []Row{}}
+	v := View{Play: "play", PlayOn: state == "ready", Link: "copy", Selected: a.selected, Rows: []Row{}, Suggestions: a.suggestionRows()}
 	if a.locked {
-		return View{Play: "play", Link: "copy", Selected: -1, Rows: []Row{}, Locked: true, Sealed: true}
+		return View{Play: "play", Link: "copy", Selected: -1, Rows: []Row{}, Suggestions: []SuggestionRow{}, Locked: true, Sealed: true}
 	}
 	v.Sealed = a.party != nil && a.party.sealed
 	if a.playing {
@@ -1348,6 +1351,7 @@ func (a *App) hostStart() {
 	h.Paced = func() { a.do(a.pacedTurn) }
 	h.Turned = func(page int) { a.do(func() { a.showPage(page) }) }
 	h.Arrived = func(name string) { a.do(func() { a.notify(name+" is here", "They joined the party.") }) }
+	h.Suggested = func(name, link string, viewer int) { a.do(func() { a.suggested(name, link, viewer) }) }
 	if a.hostSetup != nil {
 		a.hostSetup(h)
 	}
