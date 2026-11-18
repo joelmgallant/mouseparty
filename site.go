@@ -43,6 +43,7 @@ import (
 	"sync/atomic"
 	"syscall"
 	"time"
+	"unicode"
 	"unicode/utf8"
 
 	"github.com/ftrain/mouseparty/apps"
@@ -98,7 +99,7 @@ func (r *ScheduleRow) GobDecode(b []byte) error {
 
 // SiteEvent: something viewers did, for the app
 type SiteEvent struct {
-	Kind string // log, arrived, docAt, docPages, turned, paced
+	Kind string // log, arrived, docAt, docPages, turned, paced, suggest
 	Text string
 	N    int
 }
@@ -436,6 +437,15 @@ func (m *MacCalls) Event(e SiteEvent, _ *None) error {
 		if h.Paced != nil {
 			h.Paced()
 		}
+	case "suggest":
+		name, link, _ := strings.Cut(e.Text, "\n")
+		link, _, ok := suggestedLink(link)
+		if !ok || name == "" || utf8.RuneCountInString(name) > nameMax || strings.IndexFunc(name, unicode.IsControl) >= 0 {
+			return errors.New("not a suggestion")
+		}
+		if h.Suggested != nil {
+			h.Suggested(name, link, e.N)
+		}
 	}
 	return nil
 }
@@ -631,6 +641,7 @@ func (c *SiteCalls) Start(setup SiteSetup, _ *None) error {
 	h.Turned = func(page int) { s.event("turned", "", page) }
 	h.Paced = func() { s.event("paced", "", 0) }
 	h.Arrived = func(name string) { s.event("arrived", name, 0) }
+	h.Suggested = func(name, link string, viewer int) { s.event("suggest", name+"\n"+link, viewer) }
 	h.pandoc, h.reading = &wasmTool{name: "pandoc", path: setup.Pandoc}, make(chan struct{}, 1)
 	if setup.Python != "" {
 		h.python, h.pyHome = &wasmTool{name: "python", path: filepath.Join(setup.Python, "python.wasm")}, setup.Python
@@ -680,6 +691,10 @@ func (c *SiteCalls) Tell(t SiteTell, _ *None) error {
 		h.mu.Lock()
 		h.stun = t.On
 		h.mu.Unlock()
+	case "say":
+		h.Say(t.Text, t.Page)
+	case "sayto":
+		h.SayTo(t.Viewer, t.Text)
 	case "stop":
 		h.endSession()
 	}
