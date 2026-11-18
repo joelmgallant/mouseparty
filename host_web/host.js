@@ -479,9 +479,17 @@ function suggesting(on) {
 	if (on) suggestInput.focus();
 	else suggestInput.value = "";
 }
+function plainLink(link) {
+	try {
+		const u = new URL(link);
+		return (u.protocol === "http:" || u.protocol === "https:") && u.hostname !== "" && u.username === "" && u.password === "";
+	} catch {
+		return false;
+	}
+}
 function suggest() {
 	const link = suggestInput.value.trim();
-	if (!/^https?:\/\/[^\s/]+/i.test(link)) {
+	if (!plainLink(link)) {
 		suggestInput.classList.add("nudge");
 		suggestInput.focus();
 		return;
@@ -496,7 +504,7 @@ byId("suggestBtn").addEventListener("click", () => suggesting(true));
 byId("suggestCancel").addEventListener("click", () => suggesting(false));
 byId("suggestSend").addEventListener("click", suggest);
 suggestInput.addEventListener("keydown", (e) => {
-	if (e.key === "Enter") suggest();
+	if (e.key === "Enter" && !e.isComposing) suggest();
 	if (e.key === "Escape") suggesting(false);
 });
 let chatHidden = false;

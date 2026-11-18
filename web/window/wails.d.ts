@@ -42,6 +42,7 @@ export interface SuggestionRow {
     id: number;
     name: string; // who
     link: string; // its site and path
+    url: string; // the whole link, for the tooltip
     why: string; // why Add didn't, when it didn't
 }
 

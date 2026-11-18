@@ -54,7 +54,7 @@ function renderSuggestions(list) {
 		const link = document.createElement("span");
 		link.className = "link";
 		link.textContent = s.why || s.link;
-		link.title = s.why ? `${s.link}: ${s.why}` : s.link;
+		link.title = s.why ? `${s.url}: ${s.why}` : s.url;
 		const add = document.createElement("button");
 		add.textContent = "Add";
 		add.setAttribute("aria-label", `Add ${s.name}'s suggestion`);
