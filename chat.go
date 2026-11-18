@@ -73,6 +73,7 @@ type Chat struct {
 	docPace    func(name, token string, seconds int)    // a viewer set everyone's pace
 	joined     func(v apps.Viewer)                      // a socket opened, or its viewer took a name
 	left       func(v apps.Viewer)                      // a socket closed
+	suggested  func(from apps.Viewer, link string)      // a viewer put a link forward for the list (suggest.go)
 	arrived    func(name string)                        // a viewer gave their name for the first time (a notification on the Mac)
 	max        int                                      // sockets at once (0: no limit); one more is told the party is full
 	mu         sync.Mutex
@@ -217,7 +218,7 @@ func (c *Chat) handle(w http.ResponseWriter, r *http.Request) {
 		}
 	}()
 
-	var last, lastControl, lastAt, lastPage, lastRead, lastPages, lastPace time.Time
+	var last, lastControl, lastAt, lastPage, lastRead, lastPages, lastPace, lastSuggest time.Time
 	reading := "" // the page this viewer was last said to be reading on their own (its document's token, and its number)
 	appWindow, appCount := time.Now(), 0
 	for {
@@ -265,6 +266,16 @@ func (c *Chat) handle(w http.ResponseWriter, r *http.Request) {
 			if name != "" && text != "" && time.Since(last) > 300*time.Millisecond { // a little flood control
 				last = time.Now()
 				c.say(map[string]any{"type": "msg", "name": name, "text": text})
+			}
+		case "suggest":
+			c.mu.Lock()
+			name := conn.name
+			c.mu.Unlock()
+			link, site, ok := suggestedLink(fmt.Sprint(valueOr(m["url"], "")))
+			if name != "" && ok && time.Since(lastSuggest) > suggestEvery && c.suggested != nil {
+				lastSuggest = time.Now()
+				c.say(map[string]any{"type": "system", "text": name + " suggested " + site})
+				c.suggested(apps.Viewer{ID: conn.id, Name: name}, link)
 			}
 		case "app_open", "app_close":
 			if time.Since(lastControl) > time.Second && c.appControl != nil { // one a second from a page

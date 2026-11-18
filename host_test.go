@@ -218,3 +218,88 @@ func TestMediaMTXTriesOtherPorts(t *testing.T) {
 		t.Errorf("restarted on the same ports: %q", said)
 	}
 }
+
+// A viewer's suggestion: said in everyone's chat by its site only, handed on once, and not again
+// from the same socket for suggestEvery; nothing from a viewer without a name
+func TestChatSuggest(t *testing.T) {
+	type got struct {
+		v    apps.Viewer
+		link string
+	}
+	suggested := make(chan got, 4)
+	chat := &Chat{hello: func(apps.Viewer) map[string]any { return nil }, conns: map[*chatConn]bool{},
+		suggested: func(v apps.Viewer, link string) { suggested <- got{v, link} }}
+	srv := httptest.NewServer(http.HandlerFunc(chat.handle))
+	defer srv.Close()
+	ws, _, err := websocket.DefaultDialer.Dial("ws"+strings.TrimPrefix(srv.URL, "http"), nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer ws.Close()
+	read := func() map[string]any {
+		ws.SetReadDeadline(time.Now().Add(3 * time.Second))
+		var m map[string]any
+		if err := ws.ReadJSON(&m); err != nil {
+			t.Fatal(err)
+		}
+		return m
+	}
+	read()                                                                                     // hello
+	ws.WriteJSON(map[string]string{"type": "suggest", "url": "https://archive.org/details/a"}) // no name yet: ignored
+	ws.WriteJSON(map[string]string{"type": "join", "name": "Ann"})
+	read()                                                                           // Ann joined
+	read()                                                                           // online
+	ws.WriteJSON(map[string]string{"type": "suggest", "url": "ftp://archive.org/a"}) // not a web link: ignored
+	ws.WriteJSON(map[string]string{"type": "suggest", "url": "https://archive.org/details/a"})
+	if m := read(); m["type"] != "system" || m["text"] != "Ann suggested archive.org" {
+		t.Fatal(m)
+	}
+	select {
+	case g := <-suggested:
+		if g.v.Name != "Ann" || g.v.ID == 0 || g.link != "https://archive.org/details/a" {
+			t.Fatal(g)
+		}
+	case <-time.After(3 * time.Second):
+		t.Fatal("never handed on")
+	}
+	ws.WriteJSON(map[string]string{"type": "suggest", "url": "https://archive.org/details/b"}) // too soon
+	ws.WriteJSON(map[string]string{"type": "say", "text": "after"})
+	if m := read(); m["type"] != "msg" || m["text"] != "after" {
+		t.Fatal("a second suggestion within suggestEvery was taken:", m)
+	}
+	if len(suggested) != 0 {
+		t.Fatal("handed on twice")
+	}
+}
+
+// Host.Say is a line in everyone's chat, kept for latecomers; SayTo is one socket's only
+func TestHostSayAndSayTo(t *testing.T) {
+	chat := &Chat{hello: func(apps.Viewer) map[string]any { return nil }, conns: map[*chatConn]bool{}}
+	h := &Host{urls: map[string]string{}, chat: chat}
+	srv := httptest.NewServer(http.HandlerFunc(chat.handle))
+	defer srv.Close()
+	ws, _, err := websocket.DefaultDialer.Dial("ws"+strings.TrimPrefix(srv.URL, "http"), nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer ws.Close()
+	var hello map[string]any
+	ws.SetReadDeadline(time.Now().Add(3 * time.Second))
+	ws.ReadJSON(&hello)
+	you := int(hello["you"].(float64))
+	h.SayTo(you, "just you")
+	h.Say("everyone", 0)
+	for _, want := range []string{"just you", "everyone"} {
+		var m map[string]any
+		ws.SetReadDeadline(time.Now().Add(3 * time.Second))
+		if err := ws.ReadJSON(&m); err != nil || m["type"] != "system" || m["text"] != want {
+			t.Fatal(m, err)
+		}
+	}
+	chat.mu.Lock()
+	n := len(chat.history)
+	chat.mu.Unlock()
+	if n != 1 {
+		t.Fatal("history holds", n, "lines; SayTo's isn't everyone's")
+	}
+}

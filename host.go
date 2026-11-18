@@ -143,12 +143,13 @@ type Host struct {
 	MaxViewers     int  // how many can watch at once (0: no limit); one more is told the party is full
 	Sandbox        bool // the viewer site is a process of its own, in a box (site.go, sandbox.go); false: part of this one
 	Standby        []byte
-	Party          *party            // where apps (apps.Keeper) and the pictures they name are kept (store.go); nil nowhere
-	DocAt          func(at string)   // viewers went to another page of the database up (SetAt)
-	DocPages       func(pages int)   // viewers laid out the document up as this many pages (SetPages)
-	Turned         func(page int)    // a viewer turned everyone's page (Turn); without it, SetPage
-	Paced          func()            // the pace says turn the page everyone is on (pace.go)
-	Arrived        func(name string) // a friend gave their name: they're here
+	Party          *party                              // where apps (apps.Keeper) and the pictures they name are kept (store.go); nil nowhere
+	DocAt          func(at string)                     // viewers went to another page of the database up (SetAt)
+	DocPages       func(pages int)                     // viewers laid out the document up as this many pages (SetPages)
+	Turned         func(page int)                      // a viewer turned everyone's page (Turn); without it, SetPage
+	Paced          func()                              // the pace says turn the page everyone is on (pace.go)
+	Arrived        func(name string)                   // a friend gave their name: they're here
+	Suggested      func(name, link string, viewer int) // a viewer suggested a link for the list (suggest.go); viewer: their socket
 
 	mu        sync.Mutex
 	key       string
@@ -313,6 +314,11 @@ func (h *Host) session(shelf apps.Shelf, keep pictureKeeper) {
 			h.Arrived(name)
 		}
 	}
+	h.chat.suggested = func(from apps.Viewer, link string) {
+		if h.Suggested != nil {
+			h.Suggested(from.Name, link, from.ID)
+		}
+	}
 	h.chat.docAt = h.SetAt
 	h.chat.docPage, h.chat.docRead, h.chat.docPages, h.chat.docPace = h.Turn, h.Reading, h.SetPages, h.SetPace
 }
@@ -436,6 +442,19 @@ func (h *Host) URLs() map[string]string {
 }
 
 func (h *Host) Problem() string { return h.problem }
+
+// SayTo: a line in one viewer's chat (their socket) and nobody else's, kept in no history
+func (h *Host) SayTo(viewer int, text string) {
+	if h.tell(SiteTell{Do: "sayto", Viewer: viewer, Text: text}) {
+		return
+	}
+	h.mu.Lock()
+	c := h.chat
+	h.mu.Unlock()
+	if c != nil {
+		c.sendTo(viewer, map[string]any{"type": "system", "text": text, "at": float64(time.Now().UnixMicro()) / 1e6})
+	}
+}
 
 // RTSPURL: where ffmpeg publishes
 func (h *Host) RTSPURL() string {

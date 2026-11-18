@@ -96,8 +96,11 @@ func (h *Host) Reading(name, token string, page int) {
 	chat.say(map[string]any{"type": "system", "text": text, "doc": token, "page": page})
 }
 
-// Say: a line in chat from an app (Stickies: a note left); page, if it's on a page of the document up, links there
+// Say: a line in chat from the party (an app: Stickies' note left; the app: a suggestion added); page, if it's on a page of the document up, links there
 func (h *Host) Say(text string, page int) {
+	if h.tell(SiteTell{Do: "say", Text: text, Page: page}) { // the app's Host: the site's chat says it
+		return
+	}
 	h.mu.Lock()
 	d, chat := h.doc, h.chat
 	line := map[string]any{"type": "system", "text": text}

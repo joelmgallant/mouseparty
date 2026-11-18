@@ -81,6 +81,8 @@ type SiteTell struct {
 	Page     int
 	Playing  apps.Playing
 	On       bool
+	Text     string // a line for the chat (say, sayto)
+	Viewer   int    // whose socket (sayto)
 }
 
 // GobEncode: a guide row goes as its JSON (gob would lose a 0 behind a pointer)
