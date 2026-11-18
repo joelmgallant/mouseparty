@@ -14,6 +14,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/gorilla/websocket"
 )
 
 // Each program's box (sandbox.go), tried with a stand-in for the program: what a
@@ -202,6 +204,71 @@ func TestTheSiteInItsOwnProcess(t *testing.T) {
 	h.ClearDocument()
 	if code, _ := get("doc/t1"); code != 404 {
 		t.Fatal("a document taken down is still served:", code)
+	}
+}
+
+// A suggestion across the box: said by the site, handed to the app (name, normalised link, viewer),
+// and the app's Say and SayTo reach the viewer's socket
+func TestSuggestionCrossesTheBox(t *testing.T) {
+	if findTool("mediamtx") == "" || !sandboxing() {
+		t.Skip("needs mediamtx and " + sandboxExec)
+	}
+	t.Setenv("HOME", t.TempDir())
+	type suggestion struct {
+		name, link string
+		viewer     int
+	}
+	got := make(chan suggestion, 2)
+	h := NewHost(func(s string) { t.Log(s) }, firstTool("mediamtx"), "", standby)
+	h.HTTPPort, h.ICEPort, h.MapPorts, h.CleanLeftovers, h.Sandbox = freePort(), freeICEPort(), false, false, true
+	h.Suggested = func(name, link string, viewer int) { got <- suggestion{name, link, viewer} }
+	if err := h.Start(); err != nil {
+		t.Fatal(err)
+	}
+	defer h.Stop()
+	if h.chat != nil || h.site == nil {
+		t.Fatal("the site is part of this process")
+	}
+	ws, _, err := websocket.DefaultDialer.Dial("ws"+strings.TrimPrefix(h.URLs()["lan"], "http")+"ws", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer ws.Close()
+	read := func() map[string]any {
+		t.Helper()
+		var m map[string]any
+		ws.SetReadDeadline(time.Now().Add(10 * time.Second))
+		if err := ws.ReadJSON(&m); err != nil {
+			t.Fatal(err)
+		}
+		return m
+	}
+	hello := read()
+	you, isNumber := hello["you"].(float64)
+	if hello["type"] != "hello" || !isNumber {
+		t.Fatal("not a hello:", hello)
+	}
+	ws.WriteJSON(map[string]string{"type": "join", "name": "Ann"})
+	ws.WriteJSON(map[string]string{"type": "suggest", "url": "https://archive.org/details/x"})
+	select {
+	case s := <-got:
+		if s.name != "Ann" || s.link != "https://archive.org/details/x" || s.viewer != int(you) {
+			t.Fatalf("%+v, you are %v", s, you)
+		}
+	case <-time.After(10 * time.Second):
+		t.Fatal("the suggestion never crossed")
+	}
+	h.SayTo(int(you), "just you")
+	h.Say("everyone", 0)
+	var heard []string // the system lines, "Ann joined" and the rest among them
+	for len(heard) < 4 {
+		if m := read(); m["type"] == "system" {
+			text, _ := m["text"].(string)
+			heard = append(heard, text)
+		}
+	}
+	if strings.Join(heard, "|") != "Ann joined|Ann suggested archive.org|just you|everyone" {
+		t.Fatalf("the socket heard %q", heard)
 	}
 }
 

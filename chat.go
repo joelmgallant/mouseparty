@@ -11,6 +11,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+	"unicode"
+	"unicode/utf8"
 
 	"github.com/ftrain/mouseparty/apps"
 	"github.com/gorilla/websocket"
@@ -272,7 +274,8 @@ func (c *Chat) handle(w http.ResponseWriter, r *http.Request) {
 			name := conn.name
 			c.mu.Unlock()
 			link, site, ok := suggestedLink(fmt.Sprint(valueOr(m["url"], "")))
-			if name != "" && ok && time.Since(lastSuggest) > suggestEvery && c.suggested != nil {
+			if strings.TrimSpace(name) != "" && utf8.ValidString(name) && strings.IndexFunc(name, unicode.IsControl) < 0 && ok && // as the app checks it
+				time.Since(lastSuggest) > suggestEvery && c.suggested != nil {
 				lastSuggest = time.Now()
 				c.say(map[string]any{"type": "system", "text": name + " suggested " + site})
 				c.suggested(apps.Viewer{ID: conn.id, Name: name}, link)
